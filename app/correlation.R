@@ -25,8 +25,20 @@ SingleCorResult <- eventReactive(input$run_single, {
 
         shiny::validate(need(length(other_genes) >= 1, "No genes remain after filtering."))
 
-        # Vectorized correlation
+        # Drop zero-variance (constant) genes — cor() returns NA for them, which
+        # would otherwise propagate NA correlations/p-values into the results table.
         mat_other <- mat[other_genes, , drop=FALSE]
+        gene_sd   <- apply(mat_other, 1, sd, na.rm=TRUE)
+        keep_var  <- is.finite(gene_sd) & gene_sd > 0
+        mat_other <- mat_other[keep_var, , drop=FALSE]
+        other_genes <- other_genes[keep_var]
+        shiny::validate(
+            need(sd(target_vec, na.rm=TRUE) > 0,
+                "The selected gene has no expression variance across samples; correlation is undefined."),
+            need(nrow(mat_other) >= 1, "No genes with non-zero variance remain after filtering.")
+        )
+
+        # Vectorized correlation
         r_vals <- as.numeric(cor(t(mat_other), target_vec, method = input$cor_method, use = "pairwise.complete.obs"))
 
         setProgress(0.6)
@@ -265,9 +277,9 @@ GeneListReactive <- reactive({
         tryCatch({
             species_sel <- input$msigdb_species %||% "Homo sapiens"
             if (src == "hallmark") {
-                gs_df <- msigdbr(species = species_sel, category = "H")
+                gs_df <- msigdbr_compat(species_sel, "H")
             } else {
-                gs_df <- msigdbr(species = species_sel, category = "C5", subcategory = "GO:BP")
+                gs_df <- msigdbr_compat(species_sel, "C5", "GO:BP")
             }
             genes <- gs_df$gene_symbol[gs_df$gs_name == input$msigdb_geneset]
         }, error = function(e) {

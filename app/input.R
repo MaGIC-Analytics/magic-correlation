@@ -1,6 +1,11 @@
 # ─── Utilities ─────────────────────────────────────────────────────────────────
 
-`%||%` <- function(a, b) if (!is.null(a) && length(a) > 0 && a != "") a else b
+`%||%` <- function(a, b) {
+    if (is.null(a)) return(b)
+    if (length(a) == 0) return(b)
+    if (length(a) == 1 && is.character(a) && !nzchar(a)) return(b)
+    a
+}
 
 read_delim_auto <- function(path) {
     ext <- tolower(tools::file_ext(path))
@@ -9,6 +14,21 @@ read_delim_auto <- function(path) {
     } else {
         fread(path, sep=",")
     }
+}
+
+# ── msigdbr version-compatibility shim ─────────────────────────────────────────
+# msigdbr >= 10 renamed category/subcategory -> collection/subcollection and split
+# KEGG into CP:KEGG_LEGACY/CP:KEGG_MEDICUS. Take the legacy argument names, try the
+# new API first, fall back to the old one. gs_name / gene_symbol are stable.
+msigdbr_compat <- function(species, category, subcategory = NULL) {
+    sub_new <- if (identical(subcategory, "CP:KEGG")) "CP:KEGG_LEGACY" else subcategory
+    tryCatch(
+        do.call(msigdbr, c(list(species = species, collection = category),
+                           if (!is.null(sub_new)) list(subcollection = sub_new))),
+        error = function(e)
+            do.call(msigdbr, c(list(species = species, category = category),
+                               if (!is.null(subcategory)) list(subcategory = subcategory)))
+    )
 }
 
 # ─── Demo Data Generator ───���─────────────────────────���───────────────────────
@@ -270,11 +290,8 @@ ProcessedMeta <- reactive({
 # ─── Analysis Mode Reactive ───────────────────────────────────────────────���──
 
 AnalysisMode <- reactive({
-    if (input$DemoData) {
-        input$analysis_mode %||% "single"
-    } else {
-        input$demo_mode %||% "single"
-    }
+    # Single mode control, now on the Correlation Analysis tab (not split demo/upload).
+    input$analysis_mode %||% "single"
 })
 
 output$current_mode <- reactive({ AnalysisMode() })
@@ -289,9 +306,9 @@ observe({
         src <- input$genelist_source
 
         if (src == "hallmark") {
-            gs_df <- msigdbr(species = species_sel, category = "H")
+            gs_df <- msigdbr_compat(species_sel, "H")
         } else if (src == "go_bp") {
-            gs_df <- msigdbr(species = species_sel, category = "C5", subcategory = "GO:BP")
+            gs_df <- msigdbr_compat(species_sel, "C5", "GO:BP")
         }
 
         gene_sets <- sort(unique(gs_df$gs_name))

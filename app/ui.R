@@ -198,10 +198,6 @@ tagList(
                                 ),
                                 uiOutput('subset_ui'),
                                 hr(),
-                                radioButtons("analysis_mode", "Analysis Mode:",
-                                    choices=c("Single Gene vs All"="single", "Gene List Correlation Matrix"="matrix"),
-                                    selected="single"
-                                ),
                                 actionButton('submit', "Submit Data", class='btn btn-info btn-block')
                             ),
                             conditionalPanel("input.DemoData==false",
@@ -211,10 +207,6 @@ tagList(
                                 radioButtons("transform_demo", "Data Transformation:",
                                     choices=c("None"="none", "log2(x+1)"="log2", "log10(x+1)"="log10", "Z-score per gene"="zscore"),
                                     selected="none"
-                                ),
-                                radioButtons("demo_mode", "Analysis Mode:",
-                                    choices=c("Single Gene vs All"="single", "Gene List Correlation Matrix"="matrix"),
-                                    selected="single"
                                 ),
                                 actionButton('demo_submit', "Load Demo Data", class='btn btn-success btn-block')
                             )
@@ -244,6 +236,12 @@ tagList(
                 fluidRow(
                     column(3,
                         wellPanel(
+
+                            radioButtons("analysis_mode", "Analysis Mode:",
+                                choices=c("Single Gene vs All"="single", "Gene List Correlation Matrix"="matrix"),
+                                selected="single"
+                            ),
+                            hr(),
 
                             ## Shared Controls
                             h5(strong("Correlation Settings"), style="color:#0F344C; margin-top:4px;"),
